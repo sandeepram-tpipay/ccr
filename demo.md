@@ -34,10 +34,10 @@ Follow these steps **before** you start recording your video:
 ### 2. Run the Automation Script
 * Navigate to the project directory and run:
   ```powershell
-  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+  Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
   .\setup_demo.ps1
   ```
-  *(This script automatically sets up the python environment, starts the Qdrant database, seeds the database, launches the FastAPI server in a new window, and opens the browser tabs).*
+  *(This script automatically sets up the python environment, starts the Qdrant database, wipes any existing collections and local crawl checkpoints to guarantee a fresh start, logs database points count before and after, seeds the database, launches the FastAPI server in a new window, and opens the browser tabs).*
 
 ### 3. Arrange Your Screen Tabs
 Have your browser open with the following two tabs:
