@@ -41,8 +41,8 @@ Follow these steps **before** you start recording your video:
 
 ### 3. Arrange Your Screen Tabs
 Have your browser open with the following two tabs:
-* **Tab 1:** Dashboard UI (`http://localhost:8000/`)
-* **Tab 2:** Health Check (`http://localhost:8000/api/v1/health`)
+* **Tab 1:** Dashboard UI (`http://127.0.0.1:8000/`)
+* **Tab 2:** Health Check (`http://127.0.0.1:8000/api/v1/health`)
 
 Have your code editor (VS Code) open with:
 * **File 1:** [models.py](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/app/schemas/models.py) (The schema rules)
@@ -63,7 +63,7 @@ You will show the following during the video:
 ## 🎙️ Part 4: Word-by-Word Script & Screen Actions
 
 ### **Segment 1: Introduction & App Health (0:00 - 0:40)**
-* **🎬 Screen Action:** Show your browser tab: `http://localhost:8000/api/v1/health`.
+* **🎬 Screen Action:** Show your browser tab: `http://127.0.0.1:8000/api/v1/health`.
 * **🗣️ Speak:**
   > *"Hi everyone! Today, I’m excited to show you the California Code of Regulations (CCR) Compliance Agent. This is a production-ready compliance advisor designed to crawl state regulations, index them semantically, and answer compliance queries.*
   >
@@ -72,7 +72,7 @@ You will show the following during the video:
 ---
 
 ### **Segment 2: UI Dashboard & Compliance Search (0:40 - 1:40)**
-* **🎬 Screen Action:** Switch to the browser tab: `http://localhost:8000/` (The Dashboard UI).
+* **🎬 Screen Action:** Switch to the browser tab: `http://127.0.0.1:8000/` (The Dashboard UI).
 * **🎬 Screen Action:** Click the suggested query on the left: *"What records must be kept for employee medical and exposure records?"*, then click **Ask Agent**.
 * **🗣️ Speak:**
   > *"Now, let's move to our interactive Dashboard. The interface is designed with a premium, dark-mode glassmorphic theme.*

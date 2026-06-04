@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Qdrant configurations
-    QDRANT_HOST: str = "localhost"
+    QDRANT_HOST: str = "127.0.0.1"
     QDRANT_PORT: int = 6333
     QDRANT_API_KEY: Optional[str] = None
     
