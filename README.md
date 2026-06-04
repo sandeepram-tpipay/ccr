@@ -1,6 +1,6 @@
-# California Code of Regulations (CCR) Compliance Agent
+# California Code of Regulations (CCR) Compliance Platform
 
-An enterprise-ready, production-grade Compliance Agent designed to crawl, parse, index, and query the **California Code of Regulations (CCR)**. It leverages local ONNX embeddings, a Qdrant vector database, and the Groq LLM API for Retrieval-Augmented Generation (RAG).
+An enterprise-ready, production-grade Compliance Engine designed to crawl, parse, index, and query the **California Code of Regulations (CCR)**. It leverages local ONNX embeddings, a Qdrant vector database, and the Groq LLM API for Retrieval-Augmented Generation (RAG).
 
 Served directly via a beautiful, premium **glassmorphic React Web UI**, this system helps facility operators (restaurants, movie theaters, agricultural sites, etc.) quickly map out and understand the specific regulatory requirements that apply to them.
 
@@ -16,7 +16,7 @@ The system splits the ingestion pipeline into two isolated stages to ensure comp
                                      (Stage 2: Ingestion) <── [output/crawl_checkpoints.json]
                                               │                (Allows resume after crash)
                                               ▼
-                                   [BeautifulSoup DOM Parser]
+                                    [BeautifulSoup DOM Parser]
                                               │
                       ┌───────────────────────┴───────────────────────┐
                       ▼                                               ▼
@@ -34,29 +34,32 @@ The system splits the ingestion pipeline into two isolated stages to ensure comp
 ```
 CCR/
 ├── docker-compose.yml       # Multi-container orchestrator (Backend + Qdrant DB)
-├── Dockerfile               #Slim Python environment with Playwright & Chromium
+├── Dockerfile               # Slim Python environment with Playwright & Chromium
 ├── requirements.txt         # Package dependencies (FastAPI, Qdrant, Crawl4AI, etc.)
 ├── .env.example             # Configuration templates
 ├── .env                     # Local active environment keys (git-ignored)
-├── ingest.py                # Re-engineered recursive two-stage ingestion pipeline
-├── run.sh                   # Automation operations script (Setup, Crawl, Start)
+├── load_data.py             # Re-engineered recursive two-stage ingestion pipeline
+├── crawler_cli.py           # Standalone recursive crawler script (saves to jsonl)
+├── manage.sh                # Automation operations script (Setup, Crawl, Start)
+├── run_demo.ps1             # PowerShell runner automating dev setups on Windows
 ├── output/
 │   ├── discovered_urls.json      # Stage 1 discovered section URLs
 │   ├── crawl_checkpoints.json    # Persistent crawl state tracker (resume cache)
 │   ├── crawled_sections.jsonl    # Structured local backup of canonical sections
 │   └── coverage_report.md        # Technical audit on crawl correctness & gaps
-└── app/                     # Backend Source Code
-    ├── main.py              # Application entrypoint & glassmorphic dashboard
+└── compliance_engine/       # Backend Source Code
+    ├── server.py            # Application entrypoint & glassmorphic dashboard
     ├── config.py            # Pydantic Settings configuration engine
-    ├── logging_config.py    # Structured JSON / dev console logging
-    ├── schemas/
-    │   └── models.py        # Canonical 12-field schemas & search filters
-    ├── services/
-    │   ├── crawler.py       # Scraper engine (Crawl4AI DOM parsing & HTTP fallbacks)
-    │   ├── embedder.py      # ONNX Local Embedder service (BAAI/bge-small-en-v1.5)
-    │   └── qdrant.py        # Qdrant client connection & metadata filtering search
-    └── api/
-        └── routes.py        # Endpoints: /health, /crawl, /search, /compliance/ask
+    ├── logger.py            # Structured JSON / dev console logging
+    ├── models/
+    │   └── data_models.py   # Canonical 12-field schemas & search filters
+    ├── core/
+    │   ├── crawler_service.py   # Scraper engine (Crawl4AI DOM parsing & HTTP fallbacks)
+    │   ├── embedding_service.py # ONNX Local Embedder service (BAAI/bge-small-en-v1.5)
+    │   └── qdrant_service.py    # Qdrant client connection & metadata filtering search
+    └── routers/
+        ├── dependencies.py  # Dependency injection setup
+        └── agent_router.py  # Endpoints: /health, /ingest, /lookup, /agent/consult
 ```
 
 ---
@@ -70,9 +73,9 @@ cp .env.example .env
 
 | Key | Default | Description |
 | :--- | :---: | :--- |
-| `QDRANT_HOST` | `qdrant` | Target host for Qdrant (`localhost` for local, `qdrant` for docker-compose) |
+| `QDRANT_HOST` | `localhost` | Target host for Qdrant (`localhost` for local, `qdrant_db` for docker-compose) |
 | `QDRANT_PORT` | `6333` | Rest API port for Qdrant |
-| `EMBEDDING_MODEL_NAME` | `BAAI/bge-small-en-v1.5` | FastEmbed model (384 vector dimensions) |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model (384 vector dimensions) |
 | `ENV` | `development` | Environment mode (`development` or `production`) |
 | `LOG_LEVEL` | `info` | Logger verbosity |
 | `GROQ_API_KEY` | *empty* | Groq API Key. **If unset, RAG operates in mock summary mode.** |
@@ -82,7 +85,7 @@ cp .env.example .env
 
 ## 🚀 Operations & Getting Started
 
-We provide an automated operations runner [`run.sh`](file:///Users/sandeepram/Desktop/CCR/run.sh) in the root of the repository to simplify setup, crawling, and backend execution.
+We provide an automated operations runner [`manage.sh`](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/manage.sh) in the root of the repository to simplify setup, crawling, and backend execution.
 
 ### Method 1: Docker Compose (Recommended)
 
@@ -98,7 +101,7 @@ This spins up:
 
 1. **Perform Setup & Install Browsers**:
    ```bash
-   ./run.sh setup
+   ./manage.sh setup
    ```
 2. **Launch Qdrant Container**:
    ```bash
@@ -107,7 +110,7 @@ This spins up:
 3. **Configure env**: Ensure `QDRANT_HOST=localhost` in your `.env`.
 4. **Start Application**:
    ```bash
-   ./run.sh start
+   ./manage.sh start
    ```
 
 ---
@@ -123,20 +126,20 @@ Open your browser and navigate to the health check endpoint:
   ```json
   {
     "status": "healthy",
-    "qdrant_connected": true,
+    "database_connected": true,
     "environment": "development"
   }
   ```
 
 ### Step 2: Run Crawling & Ingestion Pipeline
-To ingest regulatory data, run a crawl. This uses the new **two-stage architecture** and **persistent checkpointing**:
+To ingest regulatory data, run a crawl. This uses the **two-stage architecture** and **persistent checkpointing**:
 * **Command (inside Docker)**:
   ```bash
-  docker exec -it ccr-backend python ingest.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
+  docker exec -it compliance-engine-backend python load_data.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
   ```
 * **Command (Local/Bare-Metal)**:
   ```bash
-  ./run.sh crawl https://www.dir.ca.gov/title8/3204.html 5
+  ./manage.sh crawl https://www.dir.ca.gov/title8/3204.html 5
   ```
 * **Verification**:
   1. Inspect `output/discovered_urls.json` to verify the **Stage 1 (URL Discovery)** output.
@@ -151,12 +154,12 @@ To ingest regulatory data, run a crawl. This uses the new **two-stage architectu
 To verify that crawling resumes after an interruption:
 1. Run a crawl with depth 1:
    ```bash
-   ./run.sh crawl https://www.dir.ca.gov/title8/3204.html 20
+   ./manage.sh crawl https://www.dir.ca.gov/title8/3204.html 20
    ```
 2. Interrupt the process by hitting `Ctrl+C` midway.
-3. Check `output/crawl_checkpoints.json`. You will see some URLs marked as `"completed"` and others as `"failed"` or not present.
+3. Check `output/crawl_checkpoints.json`. You will see some URLs marked as `"success"` and others as `"failed"` or not present.
 4. Run the crawl command again. The logs will print:
-   `[INFO] Skipping already ingested URL (checkpoint completed): ...`
+   `[INFO] Skipping already ingested URL (checkpoint hit): ...`
    This proves that the system skips already indexed pages and only fetches missing ones.
 
 ### Step 4: Test Semantic Search with Metadata Filtering
@@ -171,7 +174,7 @@ Perform a POST request to search regulations, applying a metadata filter to isol
         "title_number": "8"
       }
     }' \
-    http://localhost:8000/api/v1/search
+    http://localhost:8000/api/v1/lookup
   ```
 * **Expected Response**: Results are returned only from sections where `"title_number"` is `"8"`.
 
@@ -183,18 +186,19 @@ Ask the compliance agent a question using the REST endpoint:
     -d '{
       "question": "What records must be kept for employee medical and exposure records?"
     }' \
-    http://localhost:8000/api/v1/compliance/ask
+    http://localhost:8000/api/v1/agent/consult
   ```
 * **Verification**:
   * The response contains the citations and source URLs.
   * The text explains the **rationale** of why the regulations apply.
-  * The response contains a **Follow-up Questions** section to clarify missing details.
+  * The response contains a **Clarifying Follow-up Questions** section to clarify missing details.
   * The response includes the legal disclaimer.
 
 ### Step 6: Interactive Dashboard
 1. Go to `http://localhost:8000/` in your web browser.
 2. Ask any compliance question (e.g. *"What is the retention period for employee medical records?"*).
-3. Verify that the citations are displayed as clickable links leading back to the official source URL.
+3. Click through the **Advisor**, **Ingestion Hub**, and **Vector Explorer** tabs to check their premium styles.
+4. Verify that the citations are displayed as clickable links leading back to the official source URL.
 
 ---
 

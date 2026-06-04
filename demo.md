@@ -1,4 +1,4 @@
-# 🎬 California Code of Regulations (CCR) Compliance Agent - Demo Video Guide
+# 🎬 California Code of Regulations (CCR) Compliance Engine - Demo Video Guide
 
 Welcome! This guide is designed to help you get up to speed on the project instantly, set up your computer, and follow a simple, word-by-word script to record a professional 3-to-5-minute demo video.
 
@@ -10,7 +10,7 @@ Here is a simple breakdown of what this project is, so you understand the concep
 
 1. **What is CCR?**
    * The **California Code of Regulations**. These are state laws that businesses (like restaurants, farms, movie theaters) must comply with.
-2. **What is the "Compliance Agent"?**
+2. **What is the "Compliance Platform"?**
    * It is an AI-powered assistant. A business operator can ask it a question (e.g., *"How long do I need to keep employee medical records?"*), and the agent will give them a clear compliance roadmap.
 3. **What is RAG (Retrieval-Augmented Generation)?**
    * Standard AI (like ChatGPT) can make up or hallucinate laws. To prevent this, we use **RAG**. When a user asks a question, our system first searches a database for the **exact law**, then feeds that official text to the AI (Groq/Llama 3) to write a verified summary.
@@ -35,17 +35,17 @@ Follow these steps **before** you start recording your video:
 * Navigate to the project directory and run:
   ```powershell
   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-  .\setup_demo.ps1
+  .\run_demo.ps1
   ```
   *(This script automatically sets up the python environment, starts the Qdrant database, seeds the database, launches the FastAPI server in a new window, and opens the browser tabs).*
 
 ### 3. Arrange Your Screen Tabs
 Have your browser open with the following two tabs:
 * **Tab 1:** Dashboard UI (`http://localhost:8000/`)
-* **Tab 2:** Health Check (`http://localhost:8000/api/v1/health`)
+* **Tab 2:** Health Check (`http://localhost:8050/api/v1/health` - or `http://localhost:8000/api/v1/health`)
 
 Have your code editor (VS Code) open with:
-* **File 1:** [models.py](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/app/schemas/models.py) (The schema rules)
+* **File 1:** [data_models.py](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/compliance_engine/models/data_models.py) (The schema rules)
 * **File 2:** `output/crawl_checkpoints.json` (The checkpoint file)
 
 ---
@@ -65,7 +65,7 @@ You will show the following during the video:
 ### **Segment 1: Introduction & App Health (0:00 - 0:40)**
 * **🎬 Screen Action:** Show your browser tab: `http://localhost:8000/api/v1/health`.
 * **🗣️ Speak:**
-  > *"Hi everyone! Today, I’m excited to show you the California Code of Regulations (CCR) Compliance Agent. This is a production-ready compliance advisor designed to crawl state regulations, index them semantically, and answer compliance queries.*
+  > *"Hi everyone! Today, I’m excited to show you the California Code of Regulations Compliance Platform. This is a production-ready compliance advisor designed to crawl state regulations, index them semantically, and answer compliance queries.*
   >
   > *I'll start by showing the backend's `/health` endpoint. As you can see, our FastAPI backend is active, healthy, and successfully connected to our local Qdrant Vector database."*
 
@@ -73,11 +73,11 @@ You will show the following during the video:
 
 ### **Segment 2: UI Dashboard & Compliance Search (0:40 - 1:40)**
 * **🎬 Screen Action:** Switch to the browser tab: `http://localhost:8000/` (The Dashboard UI).
-* **🎬 Screen Action:** Click the suggested query on the left: *"What records must be kept for employee medical and exposure records?"*, then click **Ask Agent**.
+* **🎬 Screen Action:** Click the suggested query on the left: *"What records must be kept for employee medical and exposure records?"*, then click **Run Audit Advice**.
 * **🗣️ Speak:**
-  > *"Now, let's move to our interactive Dashboard. The interface is designed with a premium, dark-mode glassmorphic theme.*
+  > *"Now, let's move to our interactive Dashboard. The interface is designed with a premium, dark-mode glassmorphic theme containing dedicated tabs for Advisor Agent, Ingestion Hub, and Vector Explorer.*
   >
-  > *Here, I will ask a standard compliance question. The agent vectorizes the question and queries the Qdrant database to retrieve the relevant regulation sections. It then passes this context to the Groq Llama-3 model to generate the advice.*
+  > *Here, I will ask a standard compliance question. The agent vectorizes the question and queries the Qdrant database to retrieve the relevant regulation sections. It then passes this context to the Groq model to generate the advice.*
   >
   > *Notice how structured and safe the response is:
   > 1. It provides a prominent legal advice disclaimer.
@@ -87,11 +87,11 @@ You will show the following during the video:
 
 ---
 
-### **Segment 3: CLI Crawling & Resilient Checkpoints (1:40 - 2:40)**
+### **Segment 3: CLI Ingestion & Resilient Checkpoints (1:40 - 2:40)**
 * **🎬 Screen Action:** Switch to your PowerShell terminal window.
 * **🎬 Screen Action:** Type and press Enter:
   ```powershell
-  python ingest.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
+  python load_data.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
   ```
 * **🎬 Screen Action:** Wait a second, then press `Ctrl+C` in the terminal to interrupt it.
 * **🎬 Screen Action:** Switch to your code editor and show the `output/crawl_checkpoints.json` file.
@@ -106,9 +106,9 @@ You will show the following during the video:
 ---
 
 ### **Segment 4: Data Schema & Conclusion (2:40 - 3:15)**
-* **🎬 Screen Action:** Switch to your editor and show the [models.py](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/app/schemas/models.py) file. Point with your cursor to the `CCRSection` class definition.
+* **🎬 Screen Action:** Switch to your editor and show the [data_models.py](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/compliance_engine/models/data_models.py) file. Point with your cursor to the `RegulationBlock` class definition.
 * **🗣️ Speak:**
-  > *"Finally, let’s look at how the data is structured. We enforce a strict canonical hierarchy for CCR documents, supporting all mandatory fields like title_number, chapter, and section_heading. We've implemented a custom Pydantic validator that automatically synchronizes these fields to ensure full compliance with automated indexing schemas.*
+  > *"Finally, let’s look at how the data is structured. We enforce a strict canonical hierarchy for CCR documents, supporting all mandatory fields like title_number, chapter, and section_heading in our RegulationBlock model.*
   >
   > *Under the hood, embeddings are computed locally using an ONNX BGE model, ensuring low latency and zero external API costs for vectorization.*
   >
