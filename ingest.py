@@ -130,12 +130,24 @@ class IngestionPipeline:
         # STAGE 1: URL DISCOVERY
         # ==========================================
         discovered_urls_list = []
-        if not os.path.exists(self.discovered_file):
+        loaded_from_file = False
+        if os.path.exists(self.discovered_file):
+            try:
+                with open(self.discovered_file, "r", encoding="utf-8") as f:
+                    discovered_urls_list = json.load(f)
+                logger.info(f"Loaded {len(discovered_urls_list)} discovered URLs from {self.discovered_file}")
+                loaded_from_file = True
+            except Exception as e:
+                logger.error(f"Error loading discovered URLs file: {e}")
+                discovered_urls_list = []
+
+        # Run discovery if file didn't exist, was empty, or if seed_url is not in the loaded list
+        if not loaded_from_file or not discovered_urls_list or seed_url not in discovered_urls_list:
             logger.info(f"Starting Stage 1: URL Discovery from seed: {seed_url} (Max Depth: {max_depth})")
             
             queue: List[Tuple[str, int]] = [(seed_url, 0)]
             visited_discovery: Set[str] = set()
-            discovered_sections_set: Set[str] = set()
+            discovered_sections_set: Set[str] = set(discovered_urls_list) # Keep already discovered URLs
             
             while queue and len(visited_discovery) < self.max_pages_limit:
                 current_url, depth = queue.pop(0)
@@ -170,16 +182,10 @@ class IngestionPipeline:
             discovered_urls_list = sorted(list(discovered_sections_set))
             with open(self.discovered_file, "w", encoding="utf-8") as f:
                 json.dump(discovered_urls_list, f, indent=2)
-            logger.info(f"Stage 1 complete: Discovered {len(discovered_urls_list)} section URLs. Saved to {self.discovered_file}")
+            logger.info(f"Stage 1 complete: Discovered and merged URLs. Saved {len(discovered_urls_list)} URLs to {self.discovered_file}")
         else:
-            logger.info(f"Loading discovered URLs from existing file: {self.discovered_file}")
-            try:
-                with open(self.discovered_file, "r", encoding="utf-8") as f:
-                    discovered_urls_list = json.load(f)
-                logger.info(f"Loaded {len(discovered_urls_list)} discovered URLs.")
-            except Exception as e:
-                logger.error(f"Error loading discovered URLs file: {e}")
-                discovered_urls_list = [seed_url]
+            logger.info(f"Seed URL {seed_url} already exists in discovered URLs list. Skipping discovery stage.")
+
 
         # ==========================================
         # STAGE 2: EXTRACTION AND INGESTION

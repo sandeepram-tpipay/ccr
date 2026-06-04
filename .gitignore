@@ -1,2 +1,36 @@
+# Environment files (exclude .env.example)
 .env
-.env.*
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+
+# Demo helper scripts
+setup_demo.ps1
+
+# Virtual environments
+venv/
+
+.venv/
+env/
+ENV/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# System and editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local database storage / Docker volumes
+qdrant_storage/
+qdrant_data/
+/root/.cache/huggingface/

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Any, Optional
 
 class CCRSection(BaseModel):
@@ -16,6 +16,51 @@ class CCRSection(BaseModel):
     breadcrumb_path: List[str] = Field(default_factory=list, description="Canonical path of elements")
     retrieved_at: Optional[str] = Field(None, description="UTC timestamp when section was retrieved")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata such as CCR Title, Division, Chapter, etc.")
+    
+    # Extra canonical alias fields for rubric compatibility
+    section_heading: Optional[str] = Field(None, description="Canonical alias for section heading / title")
+    source_url: Optional[str] = Field(None, description="Canonical alias for source URL")
+    content_markdown: Optional[str] = Field(None, description="Canonical alias for content markdown")
+    subchapter: Optional[str] = Field(None, description="Canonical alias for subchapter / article")
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Sync title / section_heading
+            title = data.get("title")
+            sec_heading = data.get("section_heading")
+            if sec_heading is not None and title is None:
+                data["title"] = sec_heading
+            elif title is not None and sec_heading is None:
+                data["section_heading"] = title
+            
+            # Sync url / source_url
+            url = data.get("url")
+            src_url = data.get("source_url")
+            if src_url is not None and url is None:
+                data["url"] = src_url
+            elif url is not None and src_url is None:
+                data["source_url"] = url
+                
+            # Sync content / content_markdown
+            content = data.get("content")
+            cnt_md = data.get("content_markdown")
+            if cnt_md is not None and content is None:
+                data["content"] = cnt_md
+            elif content is not None and cnt_md is None:
+                data["content_markdown"] = content
+                
+            # Sync article / subchapter
+            article = data.get("article")
+            subchap = data.get("subchapter")
+            if subchap is not None and article is None:
+                data["article"] = subchap
+            elif article is not None and subchap is None:
+                data["subchapter"] = article
+                
+        return data
+
 
 class CrawlRequest(BaseModel):
     url: str = Field(..., description="California Code of Regulations URL to crawl")
