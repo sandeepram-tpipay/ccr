@@ -232,11 +232,30 @@ Based on the retrieved regulation **{search_results[0].section.citation}**, here
             "temperature": 0.2
         }
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            answer = data["choices"][0]["message"]["content"]
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                answer = data["choices"][0]["message"]["content"]
+        except (httpx.RequestError, httpx.HTTPStatusError) as net_err:
+            logger.warning(f"Groq API call failed due to network/status error: {net_err}. Falling back to mock answer.")
+            snippet = search_results[0].section.content[:400] + "..."
+            answer = f"""[Mock Mode: Groq API Connection Failed (Offline/DNS Fallback)]
+
+Based on the retrieved regulation **{search_results[0].section.citation}**, here is a summary:
+
+{snippet}
+
+**Why this applies**: This regulation governs general requirements for the safety and compliance of facility operations.
+
+### Follow-up Questions:
+1. What specific business activity or facility type are you operating?
+2. Are there any particular subchapters or processes you are seeking compliance guidance for?
+
+*Refer to the official source URL in the citations below for the complete regulatory provisions.*
+
+{disclaimer}"""
             
         return ComplianceResponse(
             question=request.question,
