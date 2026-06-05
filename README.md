@@ -1,218 +1,133 @@
 # California Code of Regulations (CCR) Compliance Platform
 
-An enterprise-ready, production-grade Compliance Engine designed to crawl, parse, index, and query the **California Code of Regulations (CCR)**. It leverages local ONNX embeddings, a Qdrant vector database, and the Groq LLM API for Retrieval-Augmented Generation (RAG).
+An AI-powered regulatory advisor designed to crawl, parse, index, and query the **California Code of Regulations (CCR)**. The platform runs a local ONNX embedding generator, a serverless in-process **Chroma Vector Database**, and calls the **Groq API** to provide Retrieval-Augmented Generation (RAG) compliance roadmaps for California facility operators.
 
-Served directly via a beautiful, premium **glassmorphic React Web UI**, this system helps facility operators (restaurants, movie theaters, agricultural sites, etc.) quickly map out and understand the specific regulatory requirements that apply to them.
-
----
-
-## 🏗️ Architecture & Data Ingestion Flow
-
-The system splits the ingestion pipeline into two isolated stages to ensure complete coverage, correctness, and resiliency:
-
-```
-[Seed URL] ──(Stage 1: Discovery)──> [output/discovered_urls.json]
-                                              │
-                                     (Stage 2: Ingestion) <── [output/crawl_checkpoints.json]
-                                              │                (Allows resume after crash)
-                                              ▼
-                                    [BeautifulSoup DOM Parser]
-                                              │
-                      ┌───────────────────────┴───────────────────────┐
-                      ▼                                               ▼
-      [output/crawled_sections.jsonl]                       [Local Embedder: ONNX BGE]
-      (Structured Canonical JSONL Backup)                             │
-                                                                      ▼
-                                                            [Qdrant Vector DB]
-                                                            (Supports Metadata Filtering)
-```
+This version features a **premium terminal-based Interactive CLI** that supports rich colors, structured tables, markdown rendering, and automatic API key configuration loops.
 
 ---
 
-## 📂 Repository Layout
+## 🏗️ System Architecture & Data Flow
 
 ```
-CCR/
-├── docker-compose.yml       # Multi-container orchestrator (Backend + Qdrant DB)
-├── Dockerfile               # Slim Python environment with Playwright & Chromium
-├── requirements.txt         # Package dependencies (FastAPI, Qdrant, Crawl4AI, etc.)
-├── .env.example             # Configuration templates
-├── .env                     # Local active environment keys (git-ignored)
-├── load_data.py             # Re-engineered recursive two-stage ingestion pipeline
-├── crawler_cli.py           # Standalone recursive crawler script (saves to jsonl)
-├── manage.sh                # Automation operations script (Setup, Crawl, Start)
-├── run_demo.ps1             # PowerShell runner automating dev setups on Windows
-├── output/
-│   ├── discovered_urls.json      # Stage 1 discovered section URLs
-│   ├── crawl_checkpoints.json    # Persistent crawl state tracker (resume cache)
-│   ├── crawled_sections.jsonl    # Structured local backup of canonical sections
-│   └── coverage_report.md        # Technical audit on crawl correctness & gaps
-└── compliance_engine/       # Backend Source Code
-    ├── server.py            # Application entrypoint & glassmorphic dashboard
-    ├── config.py            # Pydantic Settings configuration engine
-    ├── logger.py            # Structured JSON / dev console logging
-    ├── models/
-    │   └── data_models.py   # Canonical 12-field schemas & search filters
-    ├── core/
-    │   ├── crawler_service.py   # Scraper engine (Crawl4AI DOM parsing & HTTP fallbacks)
-    │   ├── embedding_service.py # ONNX Local Embedder service (BAAI/bge-small-en-v1.5)
-    │   └── qdrant_service.py    # Qdrant client connection & metadata filtering search
-    └── routers/
-        ├── dependencies.py  # Dependency injection setup
-        └── agent_router.py  # Endpoints: /health, /ingest, /lookup, /agent/consult
+[Seed URL] ──(Stage 1: Link Discovery)──> [output/url_manifest.json]
+                                                  │
+                                         (Stage 2: Ingestion) <── [output/ingestion_state.json]
+                                                  │                (Resume checkpoints)
+                                                  ▼
+                                       [BeautifulSoup Parser]
+                                                  │
+                          ┌───────────────────────┴───────────────────────┐
+                          ▼                                               ▼
+          [output/ccr_vault.jsonl]                             [Local Embedder: ONNX BGE]
+          (Structured local archive)                                      │
+                                                                          ▼
+                                                                  [Chroma Vector DB]
+                                                                  (In-Process, SQLite-backed)
 ```
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## 📂 Codebase Structure
 
-Create your active `.env` file by copying the template:
+```
+CCR-project/
+├── run_platform.ps1        # PowerShell script automating environment setup & demo seeding
+├── requirements.txt         # Package dependencies (ChromaDB, FastEmbed, Crawl4AI, Rich)
+├── .env.example             # Configuration template
+├── .env                     # Active environment variables (git-ignored)
+├── load_vault.py            # Recursive two-stage ingestion and database indexing pipeline
+├── agent_cli.py             # Interactive CLI chatbot, sandbox lookup, and status diagnostics
+└── calregs_agent/           # Core Source Code Package
+    ├── config.py            # Pydantic Settings configuration manager
+    └── core/
+        ├── scraper.py       # Scraper engine (Crawl4AI DOM parsing & HTTP fallbacks)
+        ├── embeddings.py    # Local FastEmbed service (BGE model)
+        ├── vector_db.py     # Local ChromaDB connection & similarity search
+        └── models.py        # Pydantic schema validation (CCRSection, SearchHit)
+```
+
+---
+
+## ⚙️ Setup & Operations
+
+### Pre-seeded Database (Instant Run)
+To make local evaluation as simple as possible, the database located under `output/chroma_db` is **pre-seeded** and included directly in this repository. Evaluation reviewers do not need to run the crawler or seed the database themselves to test the advisor; it is ready to run out of the box!
+
+### Method 1: Automatic Setup & Run (Recommended)
+
+#### On Windows (PowerShell):
+Open PowerShell (As Administrator) in the repository root and execute:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+.\run_platform.ps1
+```
+
+#### On macOS / Linux (Bash):
+Open a terminal in the repository root and execute:
 ```bash
-cp .env.example .env
+chmod +x run_platform.sh
+./run_platform.sh
 ```
 
-| Key | Default | Description |
-| :--- | :---: | :--- |
-| `QDRANT_HOST` | `localhost` | Target host for Qdrant (`localhost` for local, `qdrant_db` for docker-compose) |
-| `QDRANT_PORT` | `6333` | Rest API port for Qdrant |
-| `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model (384 vector dimensions) |
-| `ENV` | `development` | Environment mode (`development` or `production`) |
-| `LOG_LEVEL` | `info` | Logger verbosity |
-| `GROQ_API_KEY` | *empty* | Groq API Key. **If unset, RAG operates in mock summary mode.** |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Model identifier to query in Groq |
+These scripts will automatically:
+1. Create a virtual environment (`venv`).
+2. Install pip requirements and Playwright/Chromium dependencies.
+3. Verify if `output/chroma_db` is present (skipping crawling if found, or automatically seeding it with key sections of Title 8 safety guidelines if not).
+4. Launch the **Interactive Compliance Chat CLI** directly.
+
+
+### Method 2: Manual Step-by-Step Execution
+
+1. **Initialize Environment & Install Packages**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   pip install -r requirements.txt
+   playwright install chromium
+   ```
+
+2. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your `GROQ_API_KEY` (if left blank, the CLI will prompt you to enter it dynamically on start and offer to save it).
+
+3. **Run Ingestion & Seeding**:
+   Crawl and index regulations from a seed URL (e.g. Title 8 index):
+   ```bash
+   python load_vault.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
+   ```
+   * *Stage 1 (Discovery)* outputs the target links to `output/url_manifest.json`.
+   * *Stage 2 (Indexing)* processes targets, respects checkpoints in `output/ingestion_state.json` (allowing crashes/resumes), and commits vectors into Chroma.
+
+4. **Launch the Compliance Advisor Chat**:
+   ```bash
+   python agent_cli.py chat
+   ```
+
+5. **Execute a Semantic Search Sandbox Lookup**:
+   Check raw vector hits and cosine similarity scores:
+   ```bash
+   python agent_cli.py lookup --query "employee injury program" --limit 3
+   ```
+
+6. **Display System Health Dashboard**:
+   ```bash
+   python agent_cli.py status
+   ```
 
 ---
 
-## 🚀 Operations & Getting Started
+## ⚡ Design Decisions & Core Rubric Adherence
 
-We provide an automated operations runner [`manage.sh`](file:///c:/Users/lenovo/Desktop/backend_dev/CCR-project/manage.sh) in the root of the repository to simplify setup, crawling, and backend execution.
-
-### Method 1: Docker Compose (Recommended)
-
-To run the entire system containerized, execute:
-```bash
-docker-compose up --build -d
-```
-This spins up:
-1. **Qdrant DB** at `http://localhost:6333`
-2. **FastAPI backend** (and Dashboard UI) at `http://localhost:8000`
-
-### Method 2: Local Installation (Bare-Metal)
-
-1. **Perform Setup & Install Browsers**:
-   ```bash
-   ./manage.sh setup
-   ```
-2. **Launch Qdrant Container**:
-   ```bash
-   docker run -d -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant
-   ```
-3. **Configure env**: Ensure `QDRANT_HOST=localhost` in your `.env`.
-4. **Start Application**:
-   ```bash
-   ./manage.sh start
-   ```
-
----
-
-## 🧪 Step-by-Step Test Guide
-
-Here is how you can test each component of the assignment step-by-step:
-
-### Step 1: Verify Health Status
-Open your browser and navigate to the health check endpoint:
-* **Endpoint**: `http://localhost:8000/api/v1/health`
-* **Expected Response**:
-  ```json
-  {
-    "status": "healthy",
-    "database_connected": true,
-    "environment": "development"
-  }
-  ```
-
-### Step 2: Run Crawling & Ingestion Pipeline
-To ingest regulatory data, run a crawl. This uses the **two-stage architecture** and **persistent checkpointing**:
-* **Command (inside Docker)**:
-  ```bash
-  docker exec -it compliance-engine-backend python load_data.py --url https://www.dir.ca.gov/title8/3204.html --limit 5
-  ```
-* **Command (Local/Bare-Metal)**:
-  ```bash
-  ./manage.sh crawl https://www.dir.ca.gov/title8/3204.html 5
-  ```
-* **Verification**:
-  1. Inspect `output/discovered_urls.json` to verify the **Stage 1 (URL Discovery)** output.
-  2. Inspect `output/crawl_checkpoints.json` to see the **Persistent Checkpoint** status.
-  3. Inspect `output/crawled_sections.jsonl` to verify the **canonical 12-field schema**. You will see:
-     * `title_number`: `8`
-     * `citation`: `8 CCR § 3204`
-     * `breadcrumb_path`: contains the full hierarchy arrays.
-     * `retrieved_at`: UTC timestamps.
-
-### Step 3: Test Checkpoint Recovery (Crawl Resume)
-To verify that crawling resumes after an interruption:
-1. Run a crawl with depth 1:
-   ```bash
-   ./manage.sh crawl https://www.dir.ca.gov/title8/3204.html 20
-   ```
-2. Interrupt the process by hitting `Ctrl+C` midway.
-3. Check `output/crawl_checkpoints.json`. You will see some URLs marked as `"success"` and others as `"failed"` or not present.
-4. Run the crawl command again. The logs will print:
-   `[INFO] Skipping already ingested URL (checkpoint hit): ...`
-   This proves that the system skips already indexed pages and only fetches missing ones.
-
-### Step 4: Test Semantic Search with Metadata Filtering
-Perform a POST request to search regulations, applying a metadata filter to isolate specific titles:
-* **Request**:
-  ```bash
-  curl -X POST -H "Content-Type: application/json" \
-    -d '{
-      "query": "employee medical records",
-      "limit": 3,
-      "filters": {
-        "title_number": "8"
-      }
-    }' \
-    http://localhost:8000/api/v1/lookup
-  ```
-* **Expected Response**: Results are returned only from sections where `"title_number"` is `"8"`.
-
-### Step 5: Test the Compliance AI Agent
-Ask the compliance agent a question using the REST endpoint:
-* **Request**:
-  ```bash
-  curl -X POST -H "Content-Type: application/json" \
-    -d '{
-      "question": "What records must be kept for employee medical and exposure records?"
-    }' \
-    http://localhost:8000/api/v1/agent/consult
-  ```
-* **Verification**:
-  * The response contains the citations and source URLs.
-  * The text explains the **rationale** of why the regulations apply.
-  * The response contains a **Clarifying Follow-up Questions** section to clarify missing details.
-  * The response includes the legal disclaimer.
-
-### Step 6: Interactive Dashboard
-1. Go to `http://localhost:8000/` in your web browser.
-2. Ask any compliance question (e.g. *"What is the retention period for employee medical records?"*).
-3. Click through the **Advisor**, **Ingestion Hub**, and **Vector Explorer** tabs to check their premium styles.
-4. Verify that the citations are displayed as clickable links leading back to the official source URL.
-
----
-
-## 🏛️ Design Decisions & Assumptions
-
-1. **Unified HTML DOM Parsing Heuristic**: The crawler service extracts structured tags (`title`, headings, breadcrumbs) using BeautifulSoup rather than generic regex splitting. This ensures that the 12 canonical fields required in the rubric are populated accurately.
-2. **Metadata Filtering**: Qdrant's `FieldCondition` is integrated into vector queries to allow users to filter regulations by specific titles (e.g. Title 8) or chapters.
-3. **Local ONNX Embeddings**: FastEmbed runs `bge-small-en-v1.5` on the CPU, ensuring the application remains lightweight, CPU-efficient, and does not require GPU resources or external LLM API calls for embedding generation.
-4. **Resilient HTTP Fallbacks**: If Crawl4AI browser initialization fails (common in serverless or restricted container platforms), the system falls back to an async `httpx` HTTP scraper to maintain service availability.
-
----
-
-## ⚠️ Limitations & Future Improvements
-
-1. **Dynamic Westlaw Menus**: Westlaw Calregs uses Javascript tree panels that cannot be clicked using static HTML crawlers. Future improvements will incorporate browser click macros to automate the expansion of TOC folder menus.
-2. **Table Conversion**: Regulatory tables are currently stripped of structure. Future updates will leverage layout-aware models or markdown table formatters.
-3. **Distributed Locks**: Checkpoint cache writing is synchronous. Scaling up to concurrent workers would require migrating the queue to Redis or PostgreSQL locks.
+1. **Serverless ChromaDB (Local SQLite-backed)**:
+   Migrating the database to ChromaDB allows the entire RAG pipeline to run in-process without requiring Docker, background containers, or external cloud accounts. This makes evaluation robust and zero-dependency for reviewers.
+2. **Two-Stage Ingestion Resiliency**:
+   Discovery (Stage 1) is isolated from Ingestion (Stage 2). The checkpoints database ensures that if the crawler rate-limits or times out, restarting immediately skips success nodes and resumes the queue.
+3. **Link & Asset Filtering**:
+   Link discovery explicitly excludes CSS, JS, images, and other non-HTML extensions to prevent crawling waste, while normalizing URL paths to avoid duplicate case visits.
+4. **FastEmbed CPU Vectorization**:
+   We generate embeddings locally using ONNX `BAAI/bge-small-en-v1.5`, which takes only milliseconds on a CPU and costs zero API credits.
+5. **Key Key Prompting**:
+   If no Groq key is found in the environment, the CLI prompts the user to enter it securely and offers to persist it to `.env` for convenience, along with an interactive menu of recommended models.
